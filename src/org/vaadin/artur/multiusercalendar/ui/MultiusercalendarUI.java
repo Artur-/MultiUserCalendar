@@ -65,6 +65,7 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
                     addWindow(userNameWindow);
                 } else {
                     userName = userNameWindow.getUserName();
+                    eventProvider.fireUserJoined(MultiusercalendarUI.this);
                 }
             }
         });
@@ -94,26 +95,26 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
     }
 
     @Override
-    public void eventAdded(MultiusercalendarUI ui, MUCEvent event) {
+    public void eventAdded(MultiusercalendarUI sourceUI, MUCEvent event) {
         calendar.markAsDirty();
-        if (ui != this) {
-            Notification n = new Notification(ui.userName + " added event \""
-                    + event.getCaption() + "\" at " + event.getTime(),
-                    Type.TRAY_NOTIFICATION);
-            n.show(getPage());
+        if (sourceUI != this) {
+            showTrayNotification(sourceUI.userName + " added event \""
+                    + event.getCaption() + "\" at " + event.getTime());
         }
         push.push();
+    }
+
+    private void showTrayNotification(String message) {
+        Notification n = new Notification(message, Type.TRAY_NOTIFICATION);
+        n.show(getPage());
     }
 
     @Override
     public void eventUpdated(MultiusercalendarUI ui, MUCEvent event) {
         calendar.markAsDirty();
         if (ui != this) {
-            Notification n = new Notification(
-                    ui.userName + " updated event \"" + event.getCaption()
-                            + "\" at " + event.getTime(),
-                    Type.TRAY_NOTIFICATION);
-            n.show(getPage());
+            showTrayNotification(ui.userName + " updated event \""
+                    + event.getCaption() + "\" at " + event.getTime());
         }
         push.push();
     }
@@ -122,11 +123,8 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
     public void eventRemoved(MultiusercalendarUI ui, MUCEvent event) {
         calendar.markAsDirty();
         if (ui != this) {
-            Notification n = new Notification(
-                    ui.userName + " removed event \"" + event.getCaption()
-                            + "\" (" + event.getTime() + ")",
-                    Type.TRAY_NOTIFICATION);
-            n.show(getPage());
+            showTrayNotification(ui.userName + " removed event \""
+                    + event.getCaption() + "\" (" + event.getTime() + ")");
         }
         push.push();
     }
@@ -135,11 +133,8 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
     public void eventMoved(MultiusercalendarUI ui, MUCEvent event) {
         calendar.markAsDirty();
         if (ui != this) {
-            Notification n = new Notification(
-                    ui.userName + " moved event \"" + event.getCaption()
-                            + "\" to " + event.getTime(),
-                    Type.TRAY_NOTIFICATION);
-            n.show(getPage());
+            showTrayNotification(ui.userName + " moved event \""
+                    + event.getCaption() + "\" to " + event.getTime());
         }
         push.push();
     }
@@ -149,11 +144,18 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
         calendar.markAsDirty();
 
         if (ui != this) {
-            Notification n = new Notification(
-                    ui.userName + " changed event \"" + event.getCaption()
-                            + "\" to " + event.getTime(),
-                    Type.TRAY_NOTIFICATION);
-            n.show(getPage());
+            showTrayNotification(ui.userName + " changed event \""
+                    + event.getCaption() + "\" to " + event.getTime());
+        }
+        push.push();
+    }
+
+    @Override
+    public void userJoined(MultiusercalendarUI sourceUI) {
+        calendar.markAsDirty();
+
+        if (sourceUI != this) {
+            showTrayNotification(sourceUI.userName + " joined");
         }
         push.push();
     }
@@ -218,9 +220,11 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
                 .resizeEvent(event, e.getNewStartTime(), e.getNewEndTime());
 
     }
+
     @Override
     public void detach() {
         super.detach();
         eventProvider.removeUI(this);
     }
+
 }

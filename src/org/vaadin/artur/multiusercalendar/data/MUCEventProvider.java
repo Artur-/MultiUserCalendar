@@ -15,6 +15,8 @@ public class MUCEventProvider implements CalendarEventProvider {
     private static List<BasicEvent> events = new ArrayList<BasicEvent>();
 
     public interface EventUpdateListener {
+        public void userJoined(MultiusercalendarUI sourceUI);
+
         public void eventAdded(MultiusercalendarUI ui, MUCEvent event);
 
         public void eventRemoved(MultiusercalendarUI ui, MUCEvent event);
@@ -119,6 +121,14 @@ public class MUCEventProvider implements CalendarEventProvider {
         synchronized (MUCEventProvider.class) {
             for (EventUpdateListener l : listeners) {
                 l.eventResized(ui, (MUCEvent) event);
+            }
+        }
+    }
+
+    public void fireUserJoined(MultiusercalendarUI ui) {
+        synchronized (MUCEventProvider.class) {
+            for (EventUpdateListener l : listeners) {
+                l.userJoined(ui);
             }
         }
     }
