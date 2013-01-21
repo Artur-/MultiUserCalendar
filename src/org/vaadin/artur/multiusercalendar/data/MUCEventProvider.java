@@ -151,4 +151,10 @@ public class MUCEventProvider implements CalendarEventProvider {
 
     }
 
+    public void removeUI(MultiusercalendarUI ui) {
+        synchronized (MUCEventProvider.class) {
+            listeners.remove(ui);
+        }
+    }
+
 }

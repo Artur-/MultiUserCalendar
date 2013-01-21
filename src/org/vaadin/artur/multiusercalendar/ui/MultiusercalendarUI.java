@@ -218,5 +218,9 @@ public class MultiusercalendarUI extends UI implements EventUpdateListener,
                 .resizeEvent(event, e.getNewStartTime(), e.getNewEndTime());
 
     }
-
+    @Override
+    public void detach() {
+        super.detach();
+        eventProvider.removeUI(this);
+    }
 }
