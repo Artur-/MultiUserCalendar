@@ -21,10 +21,6 @@
 		<servlet-name>Multiusercalendar Application</servlet-name>
 		<url-pattern>/*</url-pattern>
 	</servlet-mapping>
-	<servlet-mapping>
-		<servlet-name>Multiusercalendar Application</servlet-name>
-		<url-pattern>/*</url-pattern>
-	</servlet-mapping>
 	<welcome-file-list>
 		<welcome-file>index.html</welcome-file>
 		<welcome-file>index.htm</welcome-file>
