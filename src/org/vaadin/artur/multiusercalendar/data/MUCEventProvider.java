@@ -3,18 +3,22 @@ package org.vaadin.artur.multiusercalendar.data;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.vaadin.artur.multiusercalendar.ui.MultiusercalendarUI;
 
-import com.vaadin.addon.calendar.event.BasicEvent;
-import com.vaadin.addon.calendar.event.CalendarEvent;
-import com.vaadin.addon.calendar.event.CalendarEventProvider;
+import com.vaadin.server.VaadinSession;
+import com.vaadin.ui.components.calendar.event.BasicEvent;
+import com.vaadin.ui.components.calendar.event.CalendarEvent;
+import com.vaadin.ui.components.calendar.event.CalendarEventProvider;
 
+@SuppressWarnings("serial")
 public class MUCEventProvider implements CalendarEventProvider {
 
     private static List<BasicEvent> events = new ArrayList<BasicEvent>();
 
-    public interface EventUpdateListener {
+    public interface MUCEventListener {
         public void userJoined(MultiusercalendarUI sourceUI);
 
         public void eventAdded(MultiusercalendarUI ui, MUCEvent event);
@@ -28,24 +32,16 @@ public class MUCEventProvider implements CalendarEventProvider {
         public void eventResized(MultiusercalendarUI ui, MUCEvent event);
     }
 
-    private static List<EventUpdateListener> listeners = new ArrayList<EventUpdateListener>();
-    private static List<EventSetChangeListener> eventSetChangeListeners = new ArrayList<EventSetChangeListener>();
+    private static List<MUCEventListener> listeners = new ArrayList<MUCEventListener>();
 
     private MultiusercalendarUI ui;
 
     public MUCEventProvider(MultiusercalendarUI ui) {
-        this.ui = ui;
-        addListener(ui);
-    }
-
-    private void addListener(EventUpdateListener listener) {
-        synchronized (MUCEventProvider.class) {
-            listeners.add(listener);
-        }
+        setUI(ui);
     }
 
     public void addEvent(MUCEvent event) {
-        synchronized (events) {
+        synchronized (MUCEventProvider.class) {
             events.add(event);
         }
 
@@ -55,7 +51,7 @@ public class MUCEventProvider implements CalendarEventProvider {
     }
 
     public void removeEvent(MUCEvent event) {
-        synchronized (events) {
+        synchronized (MUCEventProvider.class) {
             events.remove(event);
         }
 
@@ -65,7 +61,6 @@ public class MUCEventProvider implements CalendarEventProvider {
 
     @Override
     public List<CalendarEvent> getEvents(Date from, Date to) {
-
         List<CalendarEvent> matchingEvents = new ArrayList<CalendarEvent>();
         Object[] available = events.toArray();
         for (Object o : available) {
@@ -85,52 +80,53 @@ public class MUCEventProvider implements CalendarEventProvider {
         return matchingEvents;
     }
 
-    public void fireEventUpdated(MultiusercalendarUI ui, BasicEvent event) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.eventUpdated(ui, (MUCEvent) event);
+    public void fireEventAdded(final MultiusercalendarUI ui,
+            final MUCEvent event) {
+        fireEvent(new MUCEventDispatcher() {
+            @Override
+            public void dispatch(MUCEventListener listener) {
+                listener.eventAdded(ui, event);
             }
-        }
+        });
     }
 
-    public void fireEventAdded(MultiusercalendarUI ui, BasicEvent event) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.eventAdded(ui, (MUCEvent) event);
+    public void fireEventRemoved(final MultiusercalendarUI ui,
+            final MUCEvent event) {
+        fireEvent(new MUCEventDispatcher() {
+            @Override
+            public void dispatch(MUCEventListener listener) {
+                listener.eventRemoved(ui, event);
             }
-        }
+        });
     }
 
-    public void fireEventRemoved(MultiusercalendarUI ui, BasicEvent event) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.eventRemoved(ui, (MUCEvent) event);
+    public void fireEventMoved(final MultiusercalendarUI ui,
+            final MUCEvent event) {
+        fireEvent(new MUCEventDispatcher() {
+            @Override
+            public void dispatch(MUCEventListener listener) {
+                listener.eventMoved(ui, event);
             }
-        }
+        });
     }
 
-    public void fireEventMoved(MultiusercalendarUI ui, BasicEvent event) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.eventMoved(ui, (MUCEvent) event);
+    public void fireEventResized(final MultiusercalendarUI ui,
+            final MUCEvent event) {
+        fireEvent(new MUCEventDispatcher() {
+            @Override
+            public void dispatch(MUCEventListener listener) {
+                listener.eventResized(ui, event);
             }
-        }
+        });
     }
 
-    public void fireEventResized(MultiusercalendarUI ui, BasicEvent event) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.eventResized(ui, (MUCEvent) event);
+    public void fireUserJoined(final MultiusercalendarUI ui) {
+        fireEvent(new MUCEventDispatcher() {
+            @Override
+            public void dispatch(MUCEventListener listener) {
+                listener.userJoined(ui);
             }
-        }
-    }
-
-    public void fireUserJoined(MultiusercalendarUI ui) {
-        synchronized (MUCEventProvider.class) {
-            for (EventUpdateListener l : listeners) {
-                l.userJoined(ui);
-            }
-        }
+        });
     }
 
     public void addedEvent(MUCEvent event) {
@@ -139,21 +135,57 @@ public class MUCEventProvider implements CalendarEventProvider {
         }
     }
 
-    public void updatedEvent(MUCEvent event) {
+    public void updatedEvent(final MUCEvent event) {
         if (event.getPrivateEventOwner() == null) {
-            fireEventUpdated(ui, event);
+            fireEvent(new MUCEventDispatcher() {
+                @Override
+                public void dispatch(MUCEventListener listener) {
+                    listener.eventUpdated(ui, event);
+                }
+            });
         }
     }
 
-    public void moveEvent(BasicEvent event, Date newStart) {
+    /**
+     * Sends the event in a separate thread to avoid dead locks.
+     * 
+     * @param eventDispatcher
+     */
+    private void fireEvent(final MUCEventDispatcher eventDispatcher) {
+        final MUCEventListener[] listenerCopy;
+        synchronized (MUCEventProvider.class) {
+            listenerCopy = listeners.toArray(new MUCEventListener[] {});
+        }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //Workaround for Vaadin bug
+                VaadinSession.setCurrent(null);
+                
+                for (MUCEventListener l : listenerCopy) {
+                    try {
+                        eventDispatcher.dispatch(l);
+                    } catch (Exception e) {
+                        getLogger().log(Level.WARNING, "Failed to send event",
+                                e);
+                    }
+                }
+            }
+
+        }).start();
+
+    }
+
+    public void moveEvent(MUCEvent event, Date newStart) {
         long diff = newStart.getTime() - event.getStart().getTime();
         event.setStart(newStart);
         event.setEnd(new Date(event.getEnd().getTime() + diff));
 
-        fireEventMoved(ui, event);
+        fireEventMoved(ui, (MUCEvent) event);
     }
 
-    public void resizeEvent(BasicEvent event, Date newStartTime, Date newEndTime) {
+    public void resizeEvent(MUCEvent event, Date newStartTime, Date newEndTime) {
         event.setStart(newStartTime);
         event.setEnd(newEndTime);
 
@@ -161,10 +193,22 @@ public class MUCEventProvider implements CalendarEventProvider {
 
     }
 
+    public void setUI(MultiusercalendarUI ui) {
+        this.ui = ui;
+        synchronized (MUCEventProvider.class) {
+            listeners.add(ui.getMUCEventListener());
+        }
+
+    }
+
     public void removeUI(MultiusercalendarUI ui) {
         synchronized (MUCEventProvider.class) {
-            listeners.remove(ui);
+            listeners.remove(ui.getMUCEventListener());
         }
+    }
+
+    private static Logger getLogger() {
+        return Logger.getLogger(MUCEventProvider.class.getName());
     }
 
 }

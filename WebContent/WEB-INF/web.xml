@@ -10,16 +10,11 @@
 	</context-param>
 	<servlet>
 		<servlet-name>Multiusercalendar Application</servlet-name>
-		<servlet-class>org.vaadin.artur.icepush.ICEPushServlet</servlet-class>
+		<servlet-class>com.vaadin.server.VaadinServlet</servlet-class>
 		<init-param>
-			<description>
-			Vaadin UI class to use</description>
+			<description>Vaadin UI class to use</description>
 			<param-name>UI</param-name>
 			<param-value>org.vaadin.artur.multiusercalendar.ui.MultiusercalendarUI</param-value>
-		</init-param>
-		<init-param>
-			<param-name>widgetset</param-name>
-			<param-value>org.vaadin.artur.multiusercalendar.widgetset.MultiusercalendarWidgetset</param-value>
 		</init-param>
 	</servlet>
 	<servlet-mapping>

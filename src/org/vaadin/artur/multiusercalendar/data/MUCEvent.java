@@ -2,7 +2,9 @@ package org.vaadin.artur.multiusercalendar.data;
 
 import java.text.DateFormat;
 
-import com.vaadin.addon.calendar.event.BasicEvent;
+import org.vaadin.artur.multiusercalendar.data.MUCEventProvider.MUCEventListener;
+
+import com.vaadin.ui.components.calendar.event.BasicEvent;
 
 public class MUCEvent extends BasicEvent implements Cloneable {
 
@@ -35,5 +37,5 @@ public class MUCEvent extends BasicEvent implements Cloneable {
         return time;
 
     }
-
+    
 }
